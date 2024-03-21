@@ -39,7 +39,7 @@ func handlMessage(logger *log.Logger, method string, contents []byte) {
 			logger.Printf("error parsing: %s\n", err)
 		}
 
-		logger.Printf("connected to: %s %s",
+		logger.Printf("connected to: %s %s\n",
 			request.Params.ClientInfo.Name,
 			request.Params.ClientInfo.Version)
 
@@ -50,6 +50,15 @@ func handlMessage(logger *log.Logger, method string, contents []byte) {
 		writer.Write([]byte(reply))
 
 		logger.Printf("sent reply")
+	case "textDocument/didOpen":
+		var request lsp.DidOpenTextDocumentNotification
+		if err := json.Unmarshal(contents, &request); err != nil {
+			logger.Printf("error parsing: %s\n", err)
+		}
+
+		logger.Printf("opened: %s\n%s\n",
+			request.Params.TextDocument.URI,
+			request.Params.TextDocument.Text)
 	}
 }
 
