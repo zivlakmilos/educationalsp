@@ -39,7 +39,8 @@ func handlMessage(logger *log.Logger, state analysis.State, method string, conte
 	case "initialize":
 		var request lsp.InitializeRequest
 		if err := json.Unmarshal(contents, &request); err != nil {
-			logger.Printf("error parsing: %s\n", err)
+			logger.Printf("error initialize: %s\n", err)
+			return
 		}
 
 		logger.Printf("connected to: %s %s\n",
@@ -56,14 +57,25 @@ func handlMessage(logger *log.Logger, state analysis.State, method string, conte
 	case "textDocument/didOpen":
 		var request lsp.DidOpenTextDocumentNotification
 		if err := json.Unmarshal(contents, &request); err != nil {
-			logger.Printf("error parsing: %s\n", err)
+			logger.Printf("error textDocument/didOpen: %s\n", err)
+			return
 		}
 
-		logger.Printf("opened: %s\n%s\n",
-			request.Params.TextDocument.URI,
-			request.Params.TextDocument.Text)
+		logger.Printf("opened: %s\n", request.Params.TextDocument.URI)
 
 		state.OpenDocument(request.Params.TextDocument.URI, request.Params.TextDocument.Text)
+	case "textDocument/didChange":
+		var request lsp.TextDocumentDidChangeNotification
+		if err := json.Unmarshal(contents, &request); err != nil {
+			logger.Printf("error textDocument/didChange: %s\n", err)
+			return
+		}
+
+		logger.Printf("changed: %s\n", request.Params.TextDocument.URI)
+
+		for _, change := range request.Params.ContentChanges {
+			state.OpenDocument(request.Params.TextDocument.URI, change.Text)
+		}
 	}
 }
 
