@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/zivlakmilos/educationalsp/pkg/analysis"
 	"github.com/zivlakmilos/educationalsp/pkg/lsp"
 	"github.com/zivlakmilos/educationalsp/pkg/rpc"
 )
@@ -17,6 +18,8 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Split(rpc.Split)
 
+	state := analysis.NewState()
+
 	for scanner.Scan() {
 		msg := scanner.Bytes()
 		method, contents, err := rpc.DecodeMessage(msg)
@@ -25,11 +28,11 @@ func main() {
 			continue
 		}
 
-		handlMessage(logger, method, contents)
+		handlMessage(logger, state, method, contents)
 	}
 }
 
-func handlMessage(logger *log.Logger, method string, contents []byte) {
+func handlMessage(logger *log.Logger, state analysis.State, method string, contents []byte) {
 	logger.Printf("received msg with method: %s\n", method)
 
 	switch method {
@@ -59,6 +62,8 @@ func handlMessage(logger *log.Logger, method string, contents []byte) {
 		logger.Printf("opened: %s\n%s\n",
 			request.Params.TextDocument.URI,
 			request.Params.TextDocument.Text)
+
+		state.OpenDocument(request.Params.TextDocument.URI, request.Params.TextDocument.Text)
 	}
 }
 
