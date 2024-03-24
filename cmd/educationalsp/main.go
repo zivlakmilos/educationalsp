@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"io"
 	"log"
 	"os"
 
@@ -19,6 +20,7 @@ func main() {
 	scanner.Split(rpc.Split)
 
 	state := analysis.NewState()
+	writer := os.Stdout
 
 	for scanner.Scan() {
 		msg := scanner.Bytes()
@@ -28,11 +30,11 @@ func main() {
 			continue
 		}
 
-		handlMessage(logger, state, method, contents)
+		handlMessage(logger, writer, state, method, contents)
 	}
 }
 
-func handlMessage(logger *log.Logger, state analysis.State, method string, contents []byte) {
+func handlMessage(logger *log.Logger, writer io.Writer, state analysis.State, method string, contents []byte) {
 	logger.Printf("received msg with method: %s\n", method)
 
 	switch method {
@@ -48,10 +50,7 @@ func handlMessage(logger *log.Logger, state analysis.State, method string, conte
 			request.Params.ClientInfo.Version)
 
 		msg := lsp.NewInitializeResponse(request.ID)
-		reply := rpc.EncodeMessage(msg)
-
-		writer := os.Stdout
-		writer.Write([]byte(reply))
+		writeResponse(writer, msg)
 
 		logger.Printf("sent reply")
 	case "textDocument/didOpen":
@@ -76,7 +75,23 @@ func handlMessage(logger *log.Logger, state analysis.State, method string, conte
 		for _, change := range request.Params.ContentChanges {
 			state.OpenDocument(request.Params.TextDocument.URI, change.Text)
 		}
+	case "textDocument/hover":
+		var request lsp.HoverRequest
+		if err := json.Unmarshal(contents, &request); err != nil {
+			logger.Printf("error textDocument/hover: %s\n", err)
+			return
+		}
+
+		logger.Printf("hover: %s at pos row(%d), col(%d)\n", request.Params.TextDocument.URI, request.Params.Position.Line, request.Params.Position.Character)
+
+		response := state.Hover(request.ID, request.Params.TextDocument.URI, request.Params.Position)
+		writeResponse(writer, response)
 	}
+}
+
+func writeResponse(writer io.Writer, msg any) {
+	reply := rpc.EncodeMessage(msg)
+	writer.Write([]byte(reply))
 }
 
 func getLogger(filename string) *log.Logger {
